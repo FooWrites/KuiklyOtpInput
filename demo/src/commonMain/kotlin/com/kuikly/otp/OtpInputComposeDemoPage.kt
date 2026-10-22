@@ -18,6 +18,7 @@ import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Button
+import com.tencent.kuikly.compose.material3.ButtonDefaults
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Modifier
@@ -156,11 +157,15 @@ private fun DemoButton(
 ) {
     val background = if (primary) Color(0xFF1F6FEB) else Color(0xFFF2F4F7)
     val content = if (primary) Color.White else Color(0xFF1F2328)
+    // Surface paints ButtonColors after Modifier.background, covering it with theme primary.
     Button(
         onClick = onClick,
-        modifier = modifier
-            .height(40.dp)
-            .background(background, RoundedCornerShape(8.dp)),
+        modifier = modifier.height(40.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = background,
+            contentColor = content,
+        ),
     ) {
         Text(text = text, fontSize = 14.sp, color = content)
     }
