@@ -1,6 +1,6 @@
 # KuiklyOtpInput
 
-Kuikly 验证码输入，自研 DSL 与 Compose DSL 都能用。登录、绑卡、改密都可以接。
+Kuikly 验证码输入，分自研 DSL 与 Compose DSL 两个包，登录、绑卡、改密都可以接。自研 DSL 已在 Android 宿主上跑通；Compose DSL 的示例页还没有在设备上跑过，接入前请先自测，见[版本说明](#版本说明)。
 
 作者：[@FooWrites](https://github.com/FooWrites)
 
@@ -44,7 +44,15 @@ Compose DSL：
 implementation("com.github.FooWrites.KuiklyOtpInput:otpinput-compose:v0.1.1")
 ```
 
-`otpinput-compose` 已传递依赖 `otpinput`。本库基于 Kotlin 2.1.21 / Kuikly 2.4.2-2.0.21 构建。JitPack 只发布 `:otpinput` 和 `:otpinput-compose`，不编宿主。
+`otpinput-compose` 已传递依赖 `otpinput`。本库基于 Kotlin 2.1.21 / Kuikly 2.4.2-2.0.21 构建，发布 Android、iOS、JS（H5）产物，**不发布鸿蒙产物**。JitPack 只发布 `:otpinput` 和 `:otpinput-compose`，不编宿主。
+
+### 版本说明
+
+| 版本 | 说明 |
+| --- | --- |
+| v0.1.0 | 已作废，不要再用，请改用 v0.1.1。 |
+| v0.1.1 | 自研 DSL 可用，但挂载后再改位数时新格子不显示；父布局居中时组件宽度会塌成 0。其中的 Compose DSL 包的是自研组件，在 Compose 页面里格子拿不到布局，**不要使用**。 |
+| main（未发版） | 修复上面两处自研 DSL 问题，光标固定在末尾；Compose DSL 改用 Compose 组件重写，与自研 DSL 共用同一套位数处理。下一个版本发布。 |
 
 ## 输入方式
 
@@ -53,6 +61,7 @@ implementation("com.github.FooWrites.KuiklyOtpInput:otpinput-compose:v0.1.1")
 因此：
 
 - 手动输入时，高亮跟着当前位数走；退格删掉最后一位，高亮回到上一格。
+- 光标始终停在末尾。点到中间也会被拉回末尾，退格只删最后一位。
 - 把整段短信贴进这一格（或系统一次性写入整串）时，只保留数字并按位填进格子，然后回调 `onChange` / 满位时 `onComplete`。
 - 密文只影响格子上的显示，底层仍是数字，避免密码键盘抢走短信验证码。
 
@@ -62,9 +71,10 @@ implementation("com.github.FooWrites.KuiklyOtpInput:otpinput-compose:v0.1.1")
 | --- | --- |
 | Android | 宿主在页面加载后对底层 `EditText` 调用 `OtpAutofill.applySmsOtpHints(root)`，设置 `importantForAutofill` 和 hint `smsOTPCode`（即 `AUTOFILL_HINT_SMS_OTP`）。Gboard 一类键盘把验证码写进这一个输入框后，组件再拆开。Kuikly 2.4.2 的 Input **不会**自己带上这个 hint。 |
 | iOS | 同样是一个数字输入框，粘贴整串可用。Kuikly 2.4.2 的 Input **没有**暴露 `textContentType = .oneTimeCode`，系统「来自短信」的快捷填充条不能只靠本库打开。宿主若能拿到底层 `UITextField`，需要自己设 `UITextContentTypeOneTimeCode`。 |
-| 鸿蒙 / H5 | 粘贴整串、逐位输入、退格可用。Kuikly 2.4.2 不会给鸿蒙文本框或 H5 `input` 写一次性验证码的 content type / `autocomplete="one-time-code"`，这两端的系统自动填充不要当成已支持。 |
+| H5 | 粘贴整串、逐位输入、退格可用。Kuikly 2.4.2 不会给 H5 `input` 写 `autocomplete="one-time-code"`，系统自动填充不要当成已支持。 |
+| 鸿蒙 | 本库目前不发布鸿蒙产物。 |
 
-核心 UI 只用 Kuikly View 和 Input，不依赖浏览器 API，也不为输入逻辑起协程。
+自研 DSL 用 Kuikly View、Text 和 Input 画格子；Compose DSL 用 Row / Box / BasicText 画格子，上面叠同样的数字 Input。两边共用同一套数字过滤、`onComplete` 去重和配色。不依赖浏览器 API，也不为输入逻辑起协程。
 
 ## 自研 DSL
 
@@ -87,7 +97,7 @@ otpRef.view?.setCode("短信验证码839201，请勿泄露") // 得到 839201
 otpRef.view?.clear()
 ```
 
-颜色状态由调用方切换，组件不会在继续输入时自己清掉错误态。组件固定占 48 高，调用方不用再包 `height(48f)`，也没有改高度的接口。
+颜色状态由调用方切换，组件不会在继续输入时自己清掉错误态。组件固定占 48 高，调用方不用再包 `height(48f)`，也没有改高度的接口。宽度至少是格子总宽（6 位为 280），放在居中的父布局里也能正常显示。`length` 可以在挂载后修改。
 
 ## Compose DSL
 
@@ -111,6 +121,8 @@ controller.clear()
 
 同样固定占 48 高，不必再写 `.height(48.dp)`。调用方传入的高度不会改这一行。
 
+v0.1.1 的 Compose DSL 不要使用；main 上的新实现还没有在设备上跑过示例页，接入前请先自测。
+
 ## 本地示例
 
 `:demo` 两页：`otp_input_demo`、`otp_input_compose_demo`。
@@ -122,7 +134,7 @@ adb shell am start -n com.foowrites.kuikly.otp.host/.KuiklyRenderActivity \
   --es pageName otp_input_demo
 ```
 
-Compose 页把 `pageName` 换成 `otp_input_compose_demo`。
+Compose 页把 `pageName` 换成 `otp_input_compose_demo`，按钮和提示文案与自研页一致。
 
 页面参数 `preset` 会在出现后写入验证码（会先去掉非数字），`state` 取 `error` 或 `success`：
 
@@ -133,7 +145,7 @@ adb shell am start -n com.foowrites.kuikly.otp.host/.KuiklyRenderActivity \
   --es state error
 ```
 
-本仓库带了可安装的 Android 宿主。iOS / 鸿蒙 / H5 工程壳还没有放进来；页面名同上，接到对应 Kuikly 容器即可。
+本仓库带了可安装的 Android 宿主。iOS / H5 工程壳还没有放进来；页面名同上，接到对应 Kuikly 容器即可。鸿蒙不在本库的发布范围内。
 
 ## 许可
 
