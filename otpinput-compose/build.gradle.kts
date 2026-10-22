@@ -28,6 +28,11 @@ kotlin {
             api("com.tencent.kuikly-open:compose:$kuiklyVersion")
             api(project(":otpinput"))
         }
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
     }
 }
 
@@ -44,6 +49,9 @@ android {
     lint {
         abortOnError = false
         checkReleaseBuilds = false
+    }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 }
 
