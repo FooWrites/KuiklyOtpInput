@@ -35,13 +35,13 @@ repositories {
 自研 DSL：
 
 ```kotlin
-implementation("com.github.FooWrites.KuiklyOtpInput:otpinput:v0.1.0")
+implementation("com.github.FooWrites.KuiklyOtpInput:otpinput:v0.1.1")
 ```
 
 Compose DSL：
 
 ```kotlin
-implementation("com.github.FooWrites.KuiklyOtpInput:otpinput-compose:v0.1.0")
+implementation("com.github.FooWrites.KuiklyOtpInput:otpinput-compose:v0.1.1")
 ```
 
 `otpinput-compose` 已传递依赖 `otpinput`。本库基于 Kotlin 2.1.21 / Kuikly 2.4.2-2.0.21 构建。JitPack 只发布 `:otpinput` 和 `:otpinput-compose`，不编宿主。
