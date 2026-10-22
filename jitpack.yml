@@ -1,0 +1,4 @@
+jdk:
+  - openjdk17
+install:
+  - ./gradlew :otpinput:publishToMavenLocal :otpinput-compose:publishToMavenLocal --no-daemon --stacktrace
