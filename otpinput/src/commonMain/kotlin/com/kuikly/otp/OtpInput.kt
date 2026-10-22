@@ -6,45 +6,11 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ContainerAttr
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Input
-import com.tencent.kuikly.core.views.InputView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-
-/**
- * Visual state of the boxes. The caller owns transitions; editing does not clear them.
- */
-enum class OtpInputState {
-    Normal,
-    Error,
-    Success,
-}
-
-/**
- * Imperative handle shared by 自研 DSL ([ViewRef]) and Compose DSL.
- */
-class OtpInputController {
-    internal var input: OtpInputView? = null
-
-    fun attach(view: OtpInputView) {
-        input = view
-    }
-
-    fun setCode(code: String) {
-        input?.setCode(code)
-    }
-
-    fun clear() {
-        input?.clear()
-    }
-
-    fun focus() {
-        input?.focus()
-    }
-}
 
 /**
  * OTP boxes for login / bind-card / change-password.
@@ -54,18 +20,20 @@ class OtpInputController {
  * clipped by a per-box max length of 1. Backspace deletes the last digit and the
  * highlight moves back with it.
  *
+ * All eight cells are mounted once and the ones past [OtpInputAttr.length] collapse to
+ * zero width, so a length change never adds or removes views after mount. The cell row
+ * stays in normal flow and gives the component its width; only the Input is absolute.
+ *
  * Kuikly 2.4.2 does not forward Android autofill hints or iOS textContentType on
  * Input. Android hosts can call OtpAutofill.applySmsOtpHints after the page loads.
  */
-class OtpInputView : ViewContainer<OtpInputAttr, OtpInputEvent>() {
-    private var inputRef: ViewRef<InputView>? = null
+class OtpInputView : ViewContainer<OtpInputAttr, OtpInputEvent>(), OtpInputHandle {
+    private val binding = OtpInputBinding { change -> onCodeChange(change) }
     private var digits by observable("")
+    private var codeLength by observable(OTP_DEFAULT_LENGTH)
     private var focused by observable(false)
     private var obscureDigits by observable(false)
     private var visualState by observable(OtpInputState.Normal)
-    private var mountedLength = -1
-    private var completedFor: String? = null
-    private var pushingText = false
     private var didAutoFocus = false
 
     override fun viewName(): String = ViewConst.TYPE_VIEW
@@ -81,84 +49,77 @@ class OtpInputView : ViewContainer<OtpInputAttr, OtpInputEvent>() {
 
     override fun didInit() {
         super.didInit()
+        mountCells()
         attr.onChanged = { syncFromAttr() }
         syncFromAttr()
     }
 
-    fun setCode(raw: String) {
-        val next = normalizeOtp(raw, attr.codeLength)
-        pushText(next)
-        if (next != digits) {
-            updateCode(next)
-        }
+    override fun setCode(code: String) {
+        binding.setCode(code)
     }
 
-    fun clear() {
-        setCode("")
+    override fun clear() {
+        binding.clear()
     }
 
-    fun focus() {
-        inputRef?.view?.focus()
+    override fun focus() {
+        binding.focus()
     }
 
     private fun syncFromAttr() {
         obscureDigits = attr.obscureDigits
         visualState = attr.inputState
-        val length = attr.codeLength
-        if (length != mountedLength) {
-            mountedLength = length
-            removeChildren()
-            inputRef = null
-            if (digits.length > length) {
-                val trimmed = digits.substring(0, length)
-                updateCode(trimmed)
-            }
-            mountCells(length)
-            if (digits.isNotEmpty()) {
-                pushText(digits)
-            }
-        }
+        codeLength = attr.codeLength
+        binding.setLength(attr.codeLength)
         if (attr.autoFocus && !didAutoFocus) {
             didAutoFocus = true
             focus()
         }
     }
 
-    private fun mountCells(length: Int) {
+    private fun onCodeChange(change: OtpCodeChange) {
+        digits = change.code
+        getViewEvent().onChangeHandler?.invoke(change.code)
+        if (change.completed) {
+            getViewEvent().onCompleteHandler?.invoke(change.code)
+        }
+    }
+
+    private fun mountCells() {
         val ctx = this
         View {
             attr {
-                absolutePositionAllZero()
                 flexDirectionRow()
+                height(OtpInputHeight)
             }
-            for (index in 0 until length) {
+            for (index in 0 until OTP_MAX_LENGTH) {
                 val cellIndex = index
                 View {
                     attr {
-                        width(CELL_WIDTH)
+                        val length = ctx.codeLength
+                        val shown = cellIndex < length
+                        width(if (shown) OtpCellStyle.Width else 0f)
                         height(OtpInputHeight)
-                        if (cellIndex < length - 1) {
-                            marginRight(CELL_GAP)
-                        }
-                        borderRadius(8f)
+                        marginRight(if (cellIndex < length - 1) OtpCellStyle.Gap else 0f)
+                        visibility(shown)
+                        borderRadius(OtpCellStyle.Radius)
                         allCenter()
-                        val colors = ctx.cellColors(cellIndex, length)
-                        backgroundColor(colors.background)
-                        border(Border(1.5f, BorderStyle.SOLID, colors.border))
+                        val colors = OtpCellStyle.colors(
+                            cellIndex,
+                            ctx.digits,
+                            length,
+                            ctx.visualState,
+                            ctx.focused,
+                        )
+                        backgroundColor(Color(colors.background))
+                        border(Border(OtpCellStyle.BorderWidth, BorderStyle.SOLID, Color(colors.border)))
                     }
                     Text {
                         attr {
-                            val value = ctx.digits
-                            val hidden = ctx.obscureDigits
-                            val glyph = when {
-                                cellIndex >= value.length -> ""
-                                hidden -> "•"
-                                else -> value[cellIndex].toString()
-                            }
-                            text(glyph)
-                            fontSize(20f)
+                            text(OtpCellStyle.glyph(cellIndex, ctx.digits, ctx.obscureDigits))
+                            fontSize(OtpCellStyle.FontSize)
                             fontWeightBold()
-                            color(Color(0xFF1F2328L))
+                            color(Color(OtpCellStyle.TextColor))
                             textAlignCenter()
                         }
                     }
@@ -166,7 +127,7 @@ class OtpInputView : ViewContainer<OtpInputAttr, OtpInputEvent>() {
             }
         }
         Input {
-            ref { ctx.inputRef = it }
+            ctx.binding.attachInput(this)
             attr {
                 absolutePositionAllZero()
                 backgroundColor(Color.TRANSPARENT)
@@ -176,14 +137,14 @@ class OtpInputView : ViewContainer<OtpInputAttr, OtpInputEvent>() {
                 textAlignLeft()
                 keyboardTypeNumber()
                 imeNoFullscreen(true)
-                autofocus(ctx.attr.autoFocus)
             }
             event {
                 textDidChange { params ->
-                    ctx.onInputText(params.text)
+                    ctx.binding.onTextChanged(params.text)
                 }
                 inputFocus {
                     ctx.focused = true
+                    ctx.binding.onFocus()
                 }
                 inputBlur {
                     ctx.focused = false
@@ -191,66 +152,10 @@ class OtpInputView : ViewContainer<OtpInputAttr, OtpInputEvent>() {
             }
         }
     }
-
-    private fun onInputText(raw: String) {
-        if (pushingText) {
-            return
-        }
-        val next = normalizeOtp(raw, attr.codeLength)
-        if (next != raw) {
-            pushText(next)
-        }
-        if (next != digits) {
-            updateCode(next)
-        }
-    }
-
-    private fun pushText(text: String) {
-        val input = inputRef?.view ?: return
-        pushingText = true
-        input.setText(text)
-        pushingText = false
-    }
-
-    private fun updateCode(next: String) {
-        digits = next
-        getViewEvent().onChangeHandler?.invoke(next)
-        if (next.length == attr.codeLength) {
-            if (completedFor != next) {
-                completedFor = next
-                getViewEvent().onCompleteHandler?.invoke(next)
-            }
-        } else {
-            completedFor = null
-        }
-    }
-
-    private fun cellColors(index: Int, length: Int): CellColors {
-        val value = digits
-        val state = visualState
-        val active = focused && value.length < length && index == value.length
-        val filled = index < value.length
-        return when (state) {
-            OtpInputState.Error -> CellColors(Color(0xFFD92D20L), Color(0xFFFFF6F6L))
-            OtpInputState.Success -> CellColors(Color(0xFF12B76AL), Color(0xFFF3FCF7L))
-            OtpInputState.Normal -> when {
-                active -> CellColors(Color(0xFF1F6FEBL), Color.WHITE)
-                filled -> CellColors(Color(0xFF1F2328L), Color.WHITE)
-                else -> CellColors(Color(0xFFD0D5DDL), Color.WHITE)
-            }
-        }
-    }
-
-    private class CellColors(val border: Color, val background: Color)
-
-    private companion object {
-        const val CELL_WIDTH = 40f
-        const val CELL_GAP = 8f
-    }
 }
 
 class OtpInputAttr : ContainerAttr() {
-    internal var codeLength: Int = 6
+    internal var codeLength: Int = OTP_DEFAULT_LENGTH
     internal var obscureDigits: Boolean = false
     internal var inputState: OtpInputState = OtpInputState.Normal
     internal var autoFocus: Boolean = false

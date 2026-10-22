@@ -19,8 +19,8 @@ jobs:
         uses: android-actions/setup-android@v4
       - name: Install Android platform 34
         run: sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
-      - name: Unit test digit normalization
-        run: ./gradlew :otpinput:testDebugUnitTest --no-daemon --stacktrace
+      - name: Unit tests
+        run: ./gradlew :otpinput:testDebugUnitTest :otpinput-compose:testDebugUnitTest --no-daemon --stacktrace
       - name: Publish libraries to Maven Local
         run: ./gradlew :otpinput:publishToMavenLocal :otpinput-compose:publishToMavenLocal --no-daemon --stacktrace
       - name: Assemble Android host
