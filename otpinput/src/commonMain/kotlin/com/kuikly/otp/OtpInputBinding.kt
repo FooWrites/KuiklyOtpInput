@@ -48,7 +48,7 @@ class OtpInputController {
  * end, so a tap in the middle cannot make backspace delete a digit other than the last.
  */
 class OtpInputBinding(private val onCodeChange: (OtpCodeChange) -> Unit) : OtpInputHandle {
-    val state = OtpCodeState()
+    private val state = OtpCodeState()
     private var input: InputView? = null
 
     fun attachInput(view: InputView) {
