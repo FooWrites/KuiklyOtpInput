@@ -1,0 +1,17 @@
+.gradle/
+**/build/
+local.properties
+.kuikly/
+*.apk
+.idea/
+*.iml
+iosApp/Pods/
+iosApp/*.xcworkspace/
+iosApp/*.xcodeproj/
+ohosApp/.hvigor/
+ohosApp/entry/build/
+node_modules/
+ohosApp/oh_modules/
+ohosApp/entry/oh_modules/
+ohosApp/entry/libs/
+ohosApp/entry/src/main/cpp/thirdparty/

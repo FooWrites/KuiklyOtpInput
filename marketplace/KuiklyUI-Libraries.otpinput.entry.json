@@ -1,0 +1,15 @@
+{
+  "githubUrl": "https://github.com/FooWrites/KuiklyOtpInput",
+  "examples": [
+    "https://github.com/FooWrites/KuiklyOtpInput"
+  ],
+  "componentName": "OtpInput",
+  "componentDescription": "Kuikly 验证码输入框（Kuikly DSL / Compose DSL）",
+  "componentType": "KuiklyView",
+  "developer": "FooWrites",
+  "Android": true,
+  "iOS": true,
+  "Ohos": true,
+  "Js": true,
+  "sDynamic": true
+}

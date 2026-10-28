@@ -1,0 +1,4 @@
+jdk:
+  - openjdk17
+install:
+  - 'case "$VERSION" in *-KBA-*) ./gradlew -c settings.ohos.gradle.kts publishOhosToMavenLocal --no-daemon ;; *) ./gradlew :otpinput:publishToMavenLocal :otpinput-compose:publishToMavenLocal --no-daemon ;; esac'
